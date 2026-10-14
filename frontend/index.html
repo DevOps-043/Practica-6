@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#122b2a">
+  <meta name="description" content="Monitorea temperatura y humedad de tu ESP32. Telemetría en vivo, alertas e historial de mediciones.">
+  <title>Telemetría IoT · Práctica 6</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <svg class="svg-symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12h4l3-7 5 14 3-7h5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></symbol>
+    <symbol id="i-temp" viewBox="0 0 24 24"><path d="M9 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0Z"/><path d="M12 7v10"/><circle cx="12" cy="18" r="1"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s-7 8-7 12a7 7 0 0 0 14 0c0-4-7-12-7-12Z"/><path d="M8 15a4 4 0 0 0 4 4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8Z"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-11v1"/></symbol>
+  </svg>
+  <a class="skip-link" href="#monitor">Ir al monitoreo</a>
+  <aside class="sidebar" aria-label="Navegación principal">
+    <a class="brand" href="#monitor"><span class="brand-mark"><svg><use href="#i-wave"/></svg></span><span>Telemetría<span class="brand-sub">INTERNET DE LAS COSAS</span></span></a>
+    <div class="nav-label">ESPACIO DE TRABAJO</div>
+    <nav>
+      <a class="nav-item selected" href="#monitor"><svg><use href="#i-grid"/></svg>Monitoreo<span class="nav-dot"></span></a>
+      <a class="nav-item" href="#historial"><svg><use href="#i-clock"/></svg>Historial</a>
+      <a class="nav-item" href="#conexion"><svg><use href="#i-link"/></svg>Conexión</a>
+    </nav>
+    <div class="sidebar-note"><div class="device-mark"><svg><use href="#i-wave"/></svg></div><strong>ESP32 + DHT11</strong><p>Del circuito a tu navegador.</p><span>UDP / TCP · SQLite</span></div>
+    <div class="sidebar-footer"><span class="lab-tag">06</span><div>Práctica de IoT<small>Fernando Yael Suarez Gonzalez</small></div></div>
+  </aside>
+
+  <main id="monitor">
+    <header class="page-header">
+      <div><div class="eyebrow">PRÁCTICA 6 <span>/</span> PANEL DE CONTROL</div><h1>Monitoreo de telemetría</h1><p>Temperatura, humedad y estado de tu dispositivo.</p></div>
+      <div class="header-meta"><span class="status-pill" id="connection-status"><span class="status-dot"></span><span id="status-text">Conectando al servidor</span></span><span class="last-sync" id="last-sync">Esperando actualización</span></div>
+    </header>
+    <noscript><div class="banner error">Activa JavaScript en tu navegador para ver las mediciones y usar los controles.</div></noscript>
+    <div class="banner error" id="server-error" role="alert" hidden></div>
+    <div class="banner demo-banner" id="demo-banner" hidden><svg><use href="#i-info"/></svg><div><strong>Modo de demostración</strong><span>Estos datos son simulados. Se guardan con origen DEMO y puedes filtrarlos en el historial.</span></div></div>
+    <div class="banner warning" id="device-warning" role="status" hidden></div>
+
+    <section class="metrics" aria-label="Lecturas de la sesión actual">
+      <article class="metric-card"><div class="metric-heading">Temperatura<span class="metric-icon teal"><svg><use href="#i-temp"/></svg></span></div><div class="metric-value"><span id="temperature">—</span><span class="unit">°C</span></div><div class="metric-detail" id="temperature-detail">Esperando la primera muestra</div></article>
+      <article class="metric-card"><div class="metric-heading">Humedad relativa<span class="metric-icon blue"><svg><use href="#i-drop"/></svg></span></div><div class="metric-value"><span id="humidity">—</span><span class="unit">%</span></div><div class="metric-detail">Sensor DHT11 · KY-015</div></article>
+      <article class="metric-card" id="alert-card"><div class="metric-heading">Estado del sensor<span class="metric-icon green"><svg><use href="#i-shield"/></svg></span></div><div class="metric-value state-value" id="alert-state">Sin datos</div><div class="metric-detail" id="alert-detail">Umbral configurado: 32 °C</div></article>
+      <article class="metric-card"><div class="metric-heading">Muestras guardadas<span class="metric-icon purple"><svg><use href="#i-database"/></svg></span></div><div class="metric-value" id="sample-count">0</div><div class="metric-detail"><span id="packet-count">0</span> paquetes · sesión actual</div></article>
+    </section>
+
+    <div class="primary-grid">
+      <section class="panel chart-panel" aria-labelledby="chart-title">
+        <div class="panel-heading"><div><h2 id="chart-title">Lecturas en el tiempo</h2><p>Últimas 240 muestras del filtro seleccionado</p></div><span class="live-label" id="chart-live">Historial</span></div>
+        <div class="chart-legend"><span><i class="legend-dot temp-dot"></i>Temperatura <small>°C</small></span><span><i class="legend-dot hum-dot"></i>Humedad <small>%</small></span><span class="legend-threshold">--- Umbral</span></div>
+        <div class="chart-wrap"><svg id="chart" viewBox="0 0 700 245" role="img" aria-label="Gráfica de temperatura y humedad"><g id="chart-content"></g></svg><div class="chart-empty" id="chart-empty"><svg><use href="#i-wave"/></svg><strong>Aquí aparecerán tus mediciones</strong><span>Inicia el monitoreo o prueba el modo de demostración.</span></div></div>
+        <div class="chart-summary"><div>Mínima<strong id="stat-min">— °C</strong></div><div>Promedio<strong id="stat-average">— °C</strong></div><div>Máxima<strong id="stat-max">— °C</strong></div><div>Lecturas con alerta<strong id="stat-alerts">0</strong></div></div>
+        <div class="thermometer"><div class="thermometer-heading"><strong>Termómetro visual</strong><span id="segments-text">0 / 8 segmentos</span></div><div class="segments" id="segments" role="img" aria-label="Ningún segmento encendido"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="scale"><span>20 °C</span><span>30 °C</span><span>40 °C</span></div></div>
+      </section>
+
+      <section class="panel config-panel" id="conexion" aria-labelledby="config-title">
+        <div class="panel-heading"><div><h2 id="config-title">Configurar conexión</h2><p>Elige cómo recibir las mediciones.</p></div><svg class="heading-icon"><use href="#i-link"/></svg></div>
+        <form id="config-form">
+          <fieldset id="config-fields"><legend class="field-label">Modo de comunicación</legend>
+            <div class="mode-selector"><label><input type="radio" name="mode" value="UDP" checked><span>UDP</span></label><label><input type="radio" name="mode" value="TCP"><span>TCP</span></label><label><input type="radio" name="mode" value="DEMO"><span>Demo</span></label></div>
+            <p class="mode-help" id="mode-help">DIP 1 en ON (LOW). Escucha en el puerto 4210.</p>
+            <label class="field-label" for="device-ip">Dirección IP del ESP32</label><input id="device-ip" name="deviceIp" type="text" inputmode="decimal" value="192.168.1.101" maxlength="15" spellcheck="false" autocomplete="off" required>
+            <div class="threshold-fields"><div><label class="field-label" for="high-threshold">Alerta desde <span>°C</span></label><input id="high-threshold" name="highThreshold" type="number" min="-40" max="80" step="0.1" value="32" required></div><div><label class="field-label" for="jump-threshold">Aumento desde <span>°C</span></label><input id="jump-threshold" name="jumpThreshold" type="number" min="0.1" max="50" step="0.1" value="2" required></div></div>
+          </fieldset>
+          <div class="control-buttons"><button class="button primary" id="start-button" type="submit" disabled><svg><use href="#i-play"/></svg>Iniciar monitoreo</button><button class="button stop-button" id="stop-button" type="button" disabled><svg><use href="#i-stop"/></svg>Detener</button></div>
+          <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+        </form>
+        <div class="connection-notes"><svg><use href="#i-info"/></svg><p>El modo debe coincidir con el DIP del ESP32. La computadora y el dispositivo deben estar en la misma red Wi-Fi.</p></div>
+        <div class="connection-footer"><span>Sensor cada <strong>2 s</strong></span><span id="protocol-detail">UDP cada <strong>50 ms</strong></span></div>
+      </section>
+    </div>
+
+    <section class="panel history-panel" id="historial" aria-labelledby="history-title">
+      <div class="panel-heading history-heading"><div><h2 id="history-title">Historial de mediciones</h2><p><span id="history-count">0</span> registros guardados en SQLite para este filtro</p></div><div class="history-tools"><label class="sr-only" for="source-filter">Filtrar origen</label><select id="source-filter"><option value="all">Todos los orígenes</option><option value="UDP">ESP32 · UDP</option><option value="TCP">ESP32 · TCP</option><option value="DEMO">Demostración</option></select><label class="sr-only" for="period-filter">Filtrar periodo</label><select id="period-filter"><option value="1h">Última hora</option><option value="24h" selected>Últimas 24 horas</option><option value="all">Todo el historial</option></select><a class="button secondary" id="export-button" href="/api/export.csv?mode=all&amp;period=24h"><svg><use href="#i-download"/></svg>Exportar CSV</a></div></div>
+      <div class="table-scroll"><table><thead><tr><th>Fecha y hora</th><th>Origen</th><th>Temperatura</th><th>Humedad</th><th>Aumento</th><th>ID muestra</th><th>Estado</th></tr></thead><tbody id="history-body"><tr><td colspan="7" class="table-empty">Aún no hay mediciones. Inicia una sesión para guardar datos.</td></tr></tbody></table></div>
+      <div class="table-footer"><span>Hora local de tu navegador · solo muestras nuevas</span><div class="pagination"><button class="page-button" id="previous-page" aria-label="Página anterior" disabled>←</button><span id="page-label">1 / 1</span><button class="page-button" id="next-page" aria-label="Página siguiente" disabled>→</button></div></div>
+    </section>
+
+    <div class="secondary-grid">
+      <section class="panel events-panel" aria-labelledby="events-title"><div class="panel-heading"><div><h2 id="events-title">Registro de eventos</h2><p>Conexiones, avisos y alertas recientes</p></div><span class="small-tag">Últimos 30</span></div><ul id="event-list" class="event-list"><li class="events-empty">Los eventos aparecerán al iniciar el monitoreo.</li></ul></section>
+      <section class="panel help-panel" aria-labelledby="help-title"><div class="panel-heading"><div><h2 id="help-title">Tu circuito, conectado</h2><p>Una sesión compartida en web y móvil</p></div></div><div class="flow"><span>ESP32<small>DHT11</small></span><b>→</b><span>Java<small>SQLite</small></span><b>→</b><span>Web<small>PC / celular</small></span></div><details><summary>Conectar el ESP32</summary><ol><li>Configura el Wi-Fi en <code>ESP32_Telemetria.ino</code>.</li><li>En UDP, cambia <code>PC_IP</code> por la IPv4 de esta computadora y activa DIP 1 (ON / LOW).</li><li>En TCP, coloca DIP 1 en OFF (HIGH) e introduce aquí la IP que aparece en la OLED.</li><li>Inicia el modo correspondiente. Cierra la aplicación Swing si ocupa el puerto UDP.</li></ol></details><details><summary>Abrir en el celular</summary><p>Conecta el celular al mismo Wi-Fi y abre <code>http://IP_DE_LA_PC:3000</code>. La consola de Java muestra la dirección. Permite Java en redes privadas si Windows solicita acceso.</p></details><p class="help-caption">Si reinicias el ESP32, detén e inicia una nueva sesión. El sensor conserva su última lectura cuando falla; la web indica si no llegan muestras nuevas.</p></section>
+    </div>
+    <footer class="page-footer"><span>Telemetría IoT <span class="footer-separator">/</span> Práctica 6</span><span>Backend Java · SQLite · Web adaptable a móvil</span></footer>
+  </main>
+  <template id="row-template"><tr><td class="row-date"></td><td><span class="source-tag"></span></td><td class="row-temperature"></td><td class="row-humidity"></td><td class="row-delta"></td><td class="row-id"></td><td><span class="reading-state"></span></td></tr></template>
+  <template id="event-template"><li><span class="event-dot"></span><div><p class="event-message"></p><time class="event-time"></time></div></li></template>
+</body>
+</html>
